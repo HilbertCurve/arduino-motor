@@ -11,13 +11,13 @@
 
 typedef struct {
     size_t pin;
-    Servo back;
+    Servo *back = nullptr;
 } servo_motor_t;
 
 typedef struct {
     size_t pin[4];
     size_t stepsPerRev;
-    Stepper back;
+    Stepper *back = nullptr;
 } stepper_motor_t;
 
 const int stepsPerRev = 2052;
@@ -27,34 +27,38 @@ stepper_motor_t steppers[2];
 
 void initMotors() {
   // these are the values you modify if you want to change the pin config on the board.
-  servos[0].pin = 5;
+  servos[0].pin = 11;
   servos[1].pin = 3;
 
   steppers[0].pin[0] = 13;
   steppers[0].pin[1] = 12;
-  steppers[0].pin[2] = 11;
-  steppers[0].pin[3] = 10;
+  steppers[0].pin[2] = 10;
+  steppers[0].pin[3] = 9;
   steppers[0].stepsPerRev = 2052;
-  steppers[1].pin[0] = 13;
-  steppers[1].pin[1] = 12;
-  steppers[1].pin[2] = 11;
-  steppers[1].pin[3] = 10;
+  steppers[1].pin[0] = 8;
+  steppers[1].pin[1] = 7;
+  steppers[1].pin[2] = 6;
+  steppers[1].pin[3] = 5;
   steppers[1].stepsPerRev = 2052;
 
   // here we set up the motors themselves with the Arduino
-  servos[0].back.attach(servos[0].pin);
-  servos[1].back.attach(servos[1].pin);
+  servos[0].back = new Servo();
+  servos[1].back = new Servo();
+  servos[0].back->attach(servos[0].pin);
+  servos[1].back->attach(servos[1].pin);
 
-  steppers[0].back = Stepper(steppers[0].stepsPerRev,
+  steppers[0].back = new Stepper(steppers[0].stepsPerRev,
                              steppers[0].pin[0],
                              steppers[0].pin[1],
                              steppers[0].pin[2],
                              steppers[0].pin[3]);
-  steppers[1].back = Stepper(steppers[1].stepsPerRev,
+  steppers[1].back = new Stepper(steppers[1].stepsPerRev,
                              steppers[1].pin[0],
                              steppers[1].pin[1],
                              steppers[1].pin[2],
                              steppers[1].pin[3]);
+  steppers[0].back->setSpeed(5);
+  steppers[1].back->setSpeed(5);
 }
 
 Servo *servoShoulder;
@@ -65,11 +69,11 @@ Stepper *deprecatedStepper;
 void setup() {
   Serial.begin(9600);
   initMotors();
-  servoShoulder = &servos[0].back;
-  servoElbow = &servos[1].back;
+  servoShoulder = servos[0].back;
+  servoElbow = servos[1].back;
 
-  mainStepper = &steppers[0].back;
-  deprecatedStepper = &steppers[1].back;
+  mainStepper = steppers[0].back;
+  deprecatedStepper = steppers[1].back;
 
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -87,6 +91,22 @@ void setup() {
 // to adapt to complex
 
 void loop() {
+  if (!servoShoulder) {
+    while (true)
+      Serial.println("Dead!\n");
+  }
+  if (!servoElbow) {
+    while (true)
+      Serial.println("Dead!\n");
+  }
+  if (!mainStepper) {
+    while (true)
+      Serial.println("Dead!\n");
+  }
+  if (!deprecatedStepper) {
+    while (true)
+      Serial.println("Dead!\n");
+  }
   // signal activate mode
   digitalWrite(LED_BUILTIN, HIGH);
   servoShoulder->write(90);
