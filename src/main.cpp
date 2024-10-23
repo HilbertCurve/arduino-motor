@@ -1,6 +1,7 @@
 #include <Stepper.h>
 #include <Arduino.h>
 #include <Servo.h>
+#include "StringUtils.h"
 
 // the config setup was designed to be easily modified in a procedural way.
 // eventually, configuration could be inputted in a separate file (I was
@@ -11,72 +12,64 @@
 
 typedef struct {
     size_t pin;
-    Servo *back = nullptr;
+    Servo *back;
 } servo_motor_t;
 
 typedef struct {
     size_t pin[4];
     size_t stepsPerRev;
-    Stepper *back = nullptr;
+    Stepper *back;
 } stepper_motor_t;
 
 const int stepsPerRev = 2052;
 
-servo_motor_t servos[2];
-stepper_motor_t steppers[2];
+servo_motor_t servos[3];
+stepper_motor_t steppers[1];
 
 void initMotors() {
   // these are the values you modify if you want to change the pin config on the board.
-  servos[0].pin = 11;
-  servos[1].pin = 3;
+  servos[0].pin = 6;
+  servos[1].pin = 5;
+  servos[2].pin = 3;
 
   steppers[0].pin[0] = 13;
   steppers[0].pin[1] = 12;
   steppers[0].pin[2] = 10;
   steppers[0].pin[3] = 9;
   steppers[0].stepsPerRev = 2052;
-  steppers[1].pin[0] = 8;
-  steppers[1].pin[1] = 7;
-  steppers[1].pin[2] = 6;
-  steppers[1].pin[3] = 5;
-  steppers[1].stepsPerRev = 2052;
 
   // here we set up the motors themselves with the Arduino
   servos[0].back = new Servo();
   servos[1].back = new Servo();
+  servos[2].back = new Servo();
+
   servos[0].back->attach(servos[0].pin);
   servos[1].back->attach(servos[1].pin);
+  servos[2].back->attach(servos[2].pin);
 
   steppers[0].back = new Stepper(steppers[0].stepsPerRev,
                              steppers[0].pin[0],
                              steppers[0].pin[1],
                              steppers[0].pin[2],
                              steppers[0].pin[3]);
-  steppers[1].back = new Stepper(steppers[1].stepsPerRev,
-                             steppers[1].pin[0],
-                             steppers[1].pin[1],
-                             steppers[1].pin[2],
-                             steppers[1].pin[3]);
-  steppers[0].back->setSpeed(5);
-  steppers[1].back->setSpeed(5);
+  steppers[0].back->setSpeed(3);
 }
 
 Servo *servoShoulder;
 Servo *servoElbow;
+Servo *servoClaw;
 Stepper *mainStepper;
-Stepper *deprecatedStepper;
 
 void setup() {
   Serial.begin(9600);
   initMotors();
   servoShoulder = servos[0].back;
   servoElbow = servos[1].back;
+  servoClaw = servos[2].back;
 
   mainStepper = steppers[0].back;
-  deprecatedStepper = steppers[1].back;
 
   pinMode(LED_BUILTIN, OUTPUT);
-
 }
 
 // docs for messaging arduino:
@@ -90,48 +83,50 @@ void setup() {
 // then serial prints an error to stdout and continues. This allows for the API to be expanded easily
 // to adapt to complex
 
+
+int heartBeat = 0;
+bool lightOn = false;
+
 void loop() {
-  if (!servoShoulder) {
-    while (true)
-      Serial.println("Dead!\n");
-  }
-  if (!servoElbow) {
-    while (true)
-      Serial.println("Dead!\n");
-  }
-  if (!mainStepper) {
-    while (true)
-      Serial.println("Dead!\n");
-  }
-  if (!deprecatedStepper) {
-    while (true)
-      Serial.println("Dead!\n");
-  }
-  // signal activate mode
-  digitalWrite(LED_BUILTIN, HIGH);
-  servoShoulder->write(90);
-  delay(1000);
-  servoElbow->write(90);
-  delay(1000);
+  // wait for Serial input
+  if (Serial.available() > 0) {
+    String msgIn;
+    String msgOut;
 
-  mainStepper->step(stepsPerRev / 4);
-  delay(1000);
-  deprecatedStepper->step(stepsPerRev / 4);
-  delay(1000);
+    msgIn = Serial.readString();
+    msgIn.concat("\0");
+    Serial.flush();
 
-  // signal deactivate mode
-  digitalWrite(LED_BUILTIN, LOW);
-  deprecatedStepper->step(stepsPerRev / 4);
-  delay(1000);
-  mainStepper->step(stepsPerRev / 4);
-  delay(1000);
+    //Serial.println("We parsed input");
 
-  servoElbow->write(0);
-  delay(1000);
-  servoShoulder->write(0);
-  delay(1000);
+    // parse till next space
+    String name{};
+    String val{};
+    nextSubstr(msgIn, ' ', name, val);
+    //Serial.println("We substringed");
+    //Serial.println(msgIn);
+    if (name.compareTo(String("step")) == 0) {
+      // do stuff bc we got STEPPER!!!
+      msgOut.concat("WE GOT STEPPER!!! stepper now at ");
+      msgOut.concat(val);
+      msgOut.concat("\n");
 
-  delay(5000);
+    } else {
+      msgOut.concat("we didnt get steppr sadge\n");
+    }
+    //Serial.println("We compared");
+
+    Serial.write(msgOut.c_str());
+    //Serial.println("We wrote");
+    Serial.flush();
+  }
+  // refresh rate of 60 Hz about
+  if (++heartBeat >= 60) {
+    heartBeat = 0;
+    lightOn = !lightOn;
+    digitalWrite(LED_BUILTIN, lightOn ? HIGH : LOW);
+  }
+  delay(16);
 }
 
 
