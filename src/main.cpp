@@ -12,12 +12,14 @@
 
 typedef struct {
     size_t pin;
+    int currentPos;
     Servo *back;
 } servo_motor_t;
 
 typedef struct {
     size_t pin[4];
     size_t stepsPerRev;
+    int currentPos;
     Stepper *back;
 } stepper_motor_t;
 
@@ -32,11 +34,13 @@ void initMotors() {
   servos[1].pin = 5;
   servos[2].pin = 3;
 
-  steppers[0].pin[0] = 13;
-  steppers[0].pin[1] = 12;
-  steppers[0].pin[2] = 10;
-  steppers[0].pin[3] = 9;
+  steppers[0].pin[0] = 8;
+  steppers[0].pin[1] = 10;
+  steppers[0].pin[2] = 9;
+  steppers[0].pin[3] = 11;
   steppers[0].stepsPerRev = 2052;
+  // TODO: calibration with vision system
+  steppers[0].currentPos = 0;
 
   // here we set up the motors themselves with the Arduino
   servos[0].back = new Servo();
@@ -52,13 +56,13 @@ void initMotors() {
                              steppers[0].pin[1],
                              steppers[0].pin[2],
                              steppers[0].pin[3]);
-  steppers[0].back->setSpeed(3);
+  steppers[0].back->setSpeed(5);
 }
 
-Servo *servoShoulder;
-Servo *servoElbow;
-Servo *servoClaw;
-Stepper *mainStepper;
+Servo *servoShoulder; // shaun
+Servo *servoElbow; // edward
+Servo *servoClaw; // carl
+Stepper *mainStepper; // stephen
 
 void setup() {
   Serial.begin(9600);
@@ -105,14 +109,40 @@ void loop() {
     nextSubstr(msgIn, ' ', name, val);
     //Serial.println("We substringed");
     //Serial.println(msgIn);
-    if (name.compareTo(String("step")) == 0) {
+    if (name.compareTo(String("stephen")) == 0) {
+      float toRotate = val.toFloat();
+      steppers[0].currentPos += static_cast<signed int>(toRotate);
+      mainStepper->step(stepsPerRev * (toRotate / 360));
       // do stuff bc we got STEPPER!!!
-      msgOut.concat("WE GOT STEPPER!!! stepper now at ");
-      msgOut.concat(val);
+      msgOut.concat("WE GOT STEPHEN!!! stepper now at ");
+      msgOut.concat(steppers[0].currentPos);
       msgOut.concat("\n");
+    } else if (name.compareTo(String("shaun")) == 0) {
+      float toRotate = val.toFloat();
+      servos[0].currentPos += static_cast<signed int>(toRotate);
+      servoShoulder->write(servos[0].currentPos);
 
+      msgOut.concat("WE GOT SHAUN!!! shoulder servo now at ");
+      msgOut.concat(servos[0].currentPos);
+      msgOut.concat("\n");
+    } else if (name.compareTo(String("edward")) == 0) {
+      float toRotate = val.toFloat();
+      servos[1].currentPos += static_cast<signed int>(toRotate);
+      servoElbow->write(servos[1].currentPos);
+
+      msgOut.concat("WE GOT EDWARD!!! stepper now at ");
+      msgOut.concat(steppers[1].currentPos);
+      msgOut.concat("\n");
+    } else if (name.compareTo(String("carl")) == 0) {
+      float toRotate = val.toFloat();
+      steppers[1].currentPos += static_cast<signed int>(toRotate);
+      servoClaw->write(servos[2].currentPos);
+
+      msgOut.concat("WE GOT CARl!!! stepper now at ");
+      msgOut.concat(steppers[2].currentPos);
+      msgOut.concat("\n");
     } else {
-      msgOut.concat("we didnt get steppr sadge\n");
+      msgOut.concat("we didnt get mesag sadge\n");
     }
     //Serial.println("We compared");
 
